@@ -1,83 +1,57 @@
-import requests
+# Import libraries
 import pandas as pd
-import random
-from faker import Faker
+from transformers import pipeline
 
-# Initialize Faker
-fake = Faker()
-# Function to Provide Sentiment
-def provide_sentiment(feedback: str):
+# Load a pre-trained sentiment analysis pipeline from Hugging Face
+sentiment_pipeline = pipeline("sentiment-analysis")
+
+# Upload and load the feedback CSV file
+from google.colab import files
+uploaded = files.upload()
+feedback_file = list(uploaded.keys())[0]  # Get the uploaded file name
+feedback_data = pd.read_csv(feedback_file)
+
+# Function to analyze sentiment with suggestions using prompt techniques
+def analyze_sentiment_with_suggestions(feedback):
     try:
-        headers = {"Authorization": f"Bearer {API_KEY}"}
-        payload = {
-            "messages": [
-                {"role": "user", "content": f"Provide sentiment for the feedback: {feedback}"},
-            ]
-        }
-        response = requests.post(f"{BASE_URL}/chat/completions", json=payload, headers=headers)
-        if response.status_code == 200:
-            sentiment_response = response.json()["choices"][0]["message"]["content"]
-            return sentiment_response.strip()
+        # Define the prompt asking for sentiment analysis and improvement suggestions
+        prompt = f"Please analyze the sentiment of the following feedback and provide suggestions for improvements based on the sentiment. Respond with a JSON object containing the sentiment and a brief suggestion for improvement.\n\nFeedback: {feedback}"
+        
+        # Send the feedback to the sentiment analysis pipeline with the custom prompt
+        result = sentiment_pipeline(prompt[:512])  # Truncate to first 512 tokens for compatibility
+        
+        sentiment = result[0]['label']
+        score = result[0]['score']
+        
+        # Suggestions for improvement based on the sentiment
+        if sentiment == "NEGATIVE":
+            suggestion = "Consider improving customer service and addressing the issues mentioned."
+        elif sentiment == "POSITIVE":
+            suggestion = "Continue maintaining the high quality of service and address any minor concerns."
         else:
-            print(f"API Error: {response.status_code}, {response.text}")
-            return "Neutral"
+            suggestion = "Maintain consistency in your service and try to enhance areas that received neutral feedback."
+
+        # Return the sentiment and the suggestion for improvement in a structured JSON format
+        sentiment_analysis_result = {
+            "sentiment": sentiment,
+            "confidence": round(score, 2),
+            "suggestion": suggestion
+        }
+        return sentiment_analysis_result
+
     except Exception as e:
-        print(f"Sentiment API failed: {e}")
-        return "Neutral"
+        return {"error": f"Error analyzing feedback: {e}"}
 
-# Generate Main Dataset
-def generate_main_dataset(num_rows=10000):
-    main_data = []
-    for _ in range(num_rows):
-        feedback = fake.sentence()  # Generate random feedback
-        sentiment = provide_sentiment(feedback)  # Get sentiment from the API
-        row = {
-            "Customer Name": fake.name(),
-            "Customer Mail ID": fake.email(),
-            "Feedback": feedback,
-            "Sentiment": sentiment,
-            "Date and Time": fake.date_time_this_year(),
-            "Caretaker/Server Name": fake.name(),
-            "Care Employee ID": random.randint(1000, 9999),
-            "Customer Age": random.randint(18, 85),
-            "Customer Contact": fake.phone_number(),
-            "Department": random.choice(["Housekeeping", "Room Service", "Dining", "Wellness"]),
-            "Customer Stay Duration": random.randint(1, 30),
-            "Number of Visits": random.randint(1, 20),
-            "Membership Status": random.choice(["Gold", "Silver", "Platinum", "None"]),
-            "Amount to be Paid": round(random.uniform(50, 5000), 2),
-            "NPS": random.randint(0, 10),
-        }
-        main_data.append(row)
-    return pd.DataFrame(main_data)
+# Apply sentiment analysis to each feedback entry
+feedback_data['Sentiment and Suggestion'] = feedback_data['Feedback'].apply(analyze_sentiment_with_suggestions)
 
-# Generate Preferences Dataset
-def generate_preferences_dataset(num_rows=10000):
-    preferences_data = []
-    for _ in range(num_rows):
-        row = {
-            "Customer ID": _ + 1,
-            "Dining Preference": random.choice(["Vegetarian", "Vegan", "Non-Vegetarian"]),
-            "Room Preference": random.choice(["Deluxe", "Suite", "Standard"]),
-            "Sports Activities": random.choice(["Table Tennis", "Golf", "Swimming", "None"]),
-            "Wellness": random.choice(["Gym", "Sauna", "Massage", "None"]),
-            "Pricing Pattern": random.choice(["Frugal", "Luxury"]),
-        }
-        preferences_data.append(row)
-    return pd.DataFrame(preferences_data)
+# Trigger alerts for negative sentiment
+alerts = feedback_data[feedback_data['Sentiment and Suggestion'].apply(lambda x: "NEGATIVE" in str(x['sentiment']).upper())]
+if not alerts.empty:
+    print("Alert: Negative sentiment detected in feedback!\n")
+    print(alerts)
 
-# Save Datasets to CSV
-def save_datasets():
-    # Generate and Save Main Dataset
-    main_dataset = generate_main_dataset(10000)
-    main_dataset.to_csv("Customer-feedback.csv", index=False)
-    print("Main dataset created: 'Customer-feedback.csv'")
-
-    # Generate and Save Preferences Dataset
-    preferences_dataset = Customer-preferences_dataset(10000)
-    preferences_dataset.to_csv("hospitality_preferences.csv", index=False)
-    print("Preferences dataset created: 'Customer-Preference.csv'")
-
-# Main Execution
-if __name__ == "__main__":
-    save_datasets()
+# Save results to a new JSON file
+output_file = "feedback_analysis_results_with_suggestions.json"
+feedback_data.to_json(output_file, orient="records", lines=True)
+print(f"Sentiment analysis complete. Results saved to {output_file}.")
