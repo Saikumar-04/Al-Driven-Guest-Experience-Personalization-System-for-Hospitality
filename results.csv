@@ -1,0 +1,11 @@
+text,sentiment,confidence,rating
+"The room was spotless, and the staff was incredibly accommodating.",POSITIVE,1.0,5
+"The food was cold, and the service took too long.",NEGATIVE,1.0,1
+We had a wonderful experience with the quick check-in and beautiful ambiance.,POSITIVE,1.0,5
+"The bed was uncomfortable, and the bathroom was not clean.",NEGATIVE,1.0,1
+The staff went out of their way to make our anniversary special.,NEGATIVE,0.83,1
+"The Wi-Fi was unreliable, and it disrupted my work.",NEGATIVE,1.0,1
+"The location is perfect, and the views are breathtaking.",POSITIVE,1.0,5
+"There was too much noise at night, and I couldn’t sleep.",NEGATIVE,0.99,1
+"The breakfast spread was delightful, with plenty of healthy options.",POSITIVE,1.0,5
+I found the check-out process confusing and the staff unhelpful.,NEGATIVE,1.0,1
